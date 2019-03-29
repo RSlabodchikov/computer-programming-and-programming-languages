@@ -1,0 +1,188 @@
+.model small          
+.stack 100h  
+.data  
+    max dw ?
+    ten dw 10       
+    input_first db    'Enter the  number(-32768..+32767):$'
+    input_second db   10,13, 'Enter the  number(-32768..+32767):$'  
+    andmessage db 10, 13, 'Result of logic AND :$'   
+    ormessage db 10, 13,'Result of logic OR :$'    
+    xormessage db 10, 13,'Result of logic XOR :$' 
+    notmessage db  10,13,'Result of logic NOT(for first number) :$'                    
+    input_error_message db 10, 13,'Incorrect number$'     
+    number1	dw ? 
+    number2	dw ?
+.code
+
+
+
+
+macro print_message out_str 
+    mov ah,09h
+    mov dx,offset out_str
+    int 21h               
+endm
+
+
+macro exit_app
+   mov ax,4C00h
+   int 21h  
+endm 
+
+
+ 
+
+
+input_number proc
+    xor bp, bp
+    xor bx, bx
+    xor dx, dx 
+    mov max, 32767
+loop1:
+    mov ah, 01h
+    int 21h
+    cmp al, 0Dh
+    je finish_input
+    cmp al, '-'
+    je check_minus
+    jmp isNumber
+next:
+    sub al, '0'
+    xor ah, ah
+    mov cx, ax
+    xor ax, ax
+    mov ax, bx
+    mul ten 
+    jc error
+    add ax, cx
+    mov bx, ax
+    jmp check_overflow 
+    ret
+endp
+
+
+ 
+check_minus proc x
+    test bp, bp
+    jnz error
+    test bx, bx
+    jnz error
+    mov max, 32768
+    mov bp, 1
+    jmp loop1
+    ret
+endp
+       
+       
+finish_input proc
+loop3:
+    test bp, bp
+    jz ex
+    neg bx
+    jns error
+ex:
+   mov ax, bx
+   ret
+endp
+  
+  
+  
+error:
+    print_message input_error_message
+    exit_app
+  
+    
+    
+check_overflow proc 
+    cmp bx, max
+    je loop3 
+    ja error
+    jmp loop1
+    ret
+endp 
+
+
+ 
+isNumber proc
+    cmp al, '0'
+    jae loop2
+    jmp error
+loop2:
+    cmp al, '9'
+    jle next
+    jmp error
+    ret
+endp
+ 
+ 
+
+show_number proc 
+    xor cx, cx
+    xor dx, dx
+    xor bx, bx
+    test ax, ax  
+    jns nextNumber
+    mov bx, ax 
+    mov ah, 02h
+    mov dl, '-'
+    int 21h  
+    mov ax, bx
+    neg ax
+nextNumber:
+    xor dx, dx
+    div ten
+    add dl, '0'
+    push dx
+    inc cx
+    test ax, ax
+    jnz nextNumber
+showSymbolFromStack:
+    mov ah, 02h
+    pop dx
+    int 21h
+    loop showSymbolFromStack 
+    ret    
+endp 
+     
+     
+
+start:
+    mov ax,@data       
+    mov ds,ax 
+    
+    print_message input_first 
+    call input_number
+    mov number1, ax  
+    
+    print_message input_second
+    call input_number
+    mov number2, ax
+   
+   
+     
+    print_message notmessage 
+    mov ax, number1
+    not ax 
+    call show_number
+
+    print_message andmessage
+    mov ax, number1
+    mov bx, number2
+    and ax, bx
+    call show_number
+    
+    print_message xormessage
+    mov ax, number1
+    mov bx, number2
+    xor ax, number2  
+    call show_number
+    
+    print_message ormessage
+    mov ax, number1
+    mov bx, number2
+    or ax, bx    
+    call show_number
+     
+    exit_app
+end start 
+
